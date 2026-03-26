@@ -1,4 +1,4 @@
-🚀 OpenDriver VR
+🚀 OpenDriverVR
 
 "License" (https://img.shields.io/badge/license-MIT-green)
 "Platform" (https://img.shields.io/badge/platform-Windows-blue)
