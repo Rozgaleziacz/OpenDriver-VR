@@ -1,208 +1,89 @@
-🚀 OpenDriverVR
+# OpenDriverVR
 
-"License" (https://img.shields.io/badge/license-MIT-green)
-"Platform" (https://img.shields.io/badge/platform-Windows-blue)
-"Linux" (https://img.shields.io/badge/Linux-planned-yellow)
-"Status" (https://img.shields.io/badge/status-WIP-orange)
+OpenDriverVR is an open-source SteamVR driver that emulates a VR headset (HMD) and enables custom tracking solutions such as Kinect, webcam, or other devices.
 
-An open-source, modular SteamVR driver that emulates a virtual HMD with full 6DOF tracking and support for Kinect, webcam tracking, and custom sensors.
+## 🚀 Features
 
----
+- 🧠 Custom HMD emulation for SteamVR
+- 🎯 6DOF tracking (position + rotation)
+- 📷 Webcam-based tracking support
+- 🕺 Kinect tracking support
+- 🔌 Modular tracking input system (easy to extend)
+- 🌐 UDP / network data support (for external apps)
+- 🧩 Works with custom VR setups (DIY headsets, phone VR, etc.)
 
-📚 Table of Contents
+## 🧪 Current Status
 
-- "Overview" (#-overview)
-- "Features" (#-features)
-- "Architecture" (#-architecture)
-- "6DOF Tracking" (#-6dof-tracking)
-- "Installation" (#-installation-windows)
-- "Linux Support" (#-linux-support)
-- "Development" (#-development)
-- "Roadmap" (#-roadmap)
-- "Contributing" (#-contributing)
-- "License" (#-license)
+⚠️ Work in progress
 
----
+Core systems are under development:
+- HMD driver ✔️
+- Tracking input (basic) ✔️
+- Rendering pipeline ❌ (planned)
+- Full SteamVR integration ⚠️
 
-🚀 Overview
+## 🛠️ How It Works
 
-OpenDriverVR lets you build your own VR system using external tracking and streaming solutions.
+1. The driver emulates a VR headset inside SteamVR
+2. Tracking data is received from external sources (Python, Kinect, webcam, etc.)
+3. Data is injected into SteamVR as real HMD movement
+4. (Planned) Video stream is sent to external display (phone / custom headset)
 
-[SteamVR / OpenVR]
-   ↓
-[OpenDriverVR Driver]  ← HMD + 6DOF tracking
-   ↓
-[Tracking Input Layer]
-   ↓
-[Kinect / Webcam / Sensors]
+## 🔌 Tracking Sources
 
-[External App] ← video capture & streaming
-   ↓
-[Client Device (Phone VR / PC VR)]
+Supported / planned tracking inputs:
 
----
+- Kinect (body + head tracking)
+- Webcam (color / AI tracking)
+- Custom UDP input (Python, OpenCV, etc.)
+- IMU / DIY sensors (planned)
 
-✨ Features
+## 🖥️ Platforms
 
-- 🧠 Full 6DOF tracking (position + rotation)
-- 📷 Kinect tracking support
-- 🎥 Webcam tracking (OpenCV / AI-ready)
-- 📡 UDP / IPC tracking input
-- 🕶️ Virtual HMD for SteamVR
-- ⚡ Modular architecture
-- 🌍 Fully open-source
-- 🐧 Planned Linux support
+- ✅ Windows (primary target)
+- 🐧 Linux (planned)
 
----
+## 📦 Installation
 
-🧱 Architecture
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourname/OpenDriverVR.git
+   ```
 
-🔹 Driver (C++)
+2. Build the driver (Visual Studio recommended)
 
-Handles:
+3. Copy the driver folder to:
+   ```
+   SteamVR/drivers/
+   ```
 
-- HMD emulation
-- Pose updates (6DOF)
-- Receiving tracking data
+4. Enable the driver in SteamVR settings
 
-🔹 Tracking Systems
+## 🧠 Example Use Case
 
-- Kinect (body/head tracking)
-- Webcam (OpenCV / AI / markers)
-- Custom sensors (IMU, phone gyro)
+- DIY VR headset using a phone as display
+- Kinect full-body tracking
+- Webcam-based head tracking
+- Custom VR experiments
 
-🔹 External App
+## 🤝 Contributing
 
-- Frame capture (DXGI / future Linux APIs)
-- Encoding (JPEG / H264 / GPU acceleration)
-- Streaming via UDP
+Contributions are welcome!
 
----
+Ideas:
+- Improve tracking accuracy
+- Add new input sources
+- Optimize latency
+- Linux support
 
-🎯 6DOF Tracking
-
-Supports full spatial movement:
-
-- Rotation → Pitch / Yaw / Roll
-- Position → X / Y / Z
-
-Input sources:
-
-- Kinect skeleton tracking
-- Webcam pose estimation
-- Custom pipelines
-
----
-
-📦 Installation (Windows)
-
-1. Build the driver (x64)
-
-2. Copy DLL:
-
-SteamVR/drivers/OpenDriverVR/bin/win64/driver_OpenDriverVR.dll
-
-3. Folder structure:
-
-SteamVR/
- └── drivers/
-     └── OpenDriverVR/
-         ├── bin/win64/
-         └── resources/
-
-4. Restart SteamVR
-
----
-
-🐧 Linux Support
-
-Planned features:
-
-- OpenVR on Linux
-- SteamVR Linux runtime support
-- Wayland / X11 capture
-- VAAPI encoding
-
----
-
-⚠️ Requirements
-
-- Windows (x64) (Linux planned)
-- SteamVR / OpenVR
-- Visual Studio
-
-Optional:
-
-- Kinect SDK
-- Python / OpenCV
-- FFmpeg
-
----
-
-🔧 Development
-
-Key Components
-
-- "HmdDriverFactory" → entry point
-- "IServerTrackedDeviceProvider" → driver core
-- "ITrackedDeviceServerDriver" → HMD
-
-Notes
-
-- Must be 64-bit DLL
-- Must export "HmdDriverFactory"
-- Wrong interface = driver won’t load
-
----
-
-🧪 Status
-
-- ✅ Driver loads
-- ✅ OpenVR detected
-- ⚠️ Fake HMD (WIP)
-- ⚠️ 6DOF tracking (WIP)
-- ⚠️ Linux support (planned)
-
----
-
-🔮 Roadmap
-
-- [ ] Virtual HMD fully working
-- [ ] Stable 6DOF tracking
-- [ ] Kinect integration
-- [ ] Webcam AI tracking
-- [ ] Low latency streaming (H264)
-- [ ] Linux support
-- [ ] Mobile VR client
-
----
-
-🤝 Contributing
-
-Pull requests are welcome.
-
-Ideas, experiments, and improvements are encouraged.
-
----
-
-⚠️ Disclaimer
-
-This project is experimental.
-
-It may:
-
-- crash SteamVR
-- behave unpredictably
-- require debugging
-
-Use at your own risk.
-
----
-
-📜 License
+## 📜 License
 
 MIT License
 
+## 💡 Vision
+
+OpenDriverVR aims to become a flexible, open platform for experimental VR setups — from cheap DIY builds to advanced custom tracking systems.
+
 ---
 
-OpenDriverVR — DIY VR without limits.
+Made with ☕ and a bit of madness
