@@ -1,6 +1,10 @@
 # OpenDriverVR
 
-https://img.shields.io/github/stars/rozgaleziacz/OpenDriverVR?style=for-the-badge
+![Built with C++](https://img.shields.io/badge/Built%20with-C%2B%2B-blue?style=for-the-badge&logo=c%2B%2B)
+![SteamVR](https://img.shields.io/badge/SteamVR-compatible-black?style=for-the-badge)
+![Tracking](https://img.shields.io/badge/Tracking-6DOF-success?style=for-the-badge)
+![Kinect](https://img.shields.io/badge/Kinect-supported-purple?style=for-the-badge)
+![Webcam](https://img.shields.io/badge/Webcam-supported-informational?style=for-the-badge)
 
 OpenDriverVR is an open-source SteamVR driver that emulates a VR headset (HMD) and enables custom tracking solutions such as Kinect, webcam, or other devices.
 
