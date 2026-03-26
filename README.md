@@ -46,8 +46,8 @@ Supported / planned tracking inputs:
 
 ## 🖥️ Platforms
 
-- ✅ Windows (primary target)
-- 🐧 Linux (planned)
+- 🪟 Windows (only after porting)
+- 🐧 Linux (built on)
 
 ## 📦 Installation
 
@@ -91,5 +91,3 @@ MIT License
 OpenDriverVR aims to become a flexible, open platform for experimental VR setups — from cheap DIY builds to advanced custom tracking systems.
 
 ---
-
-Made with ☕ and a bit of madness
