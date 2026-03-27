@@ -1,4 +1,4 @@
-# OpenDriverVR
+![OpenDriver VR](assets/banner.png)
 
 ![Built with C++](https://img.shields.io/badge/Built%20with-C%2B%2B-blue?style=for-the-badge&logo=c%2B%2B)
 ![SteamVR](https://img.shields.io/badge/SteamVR-compatible-black?style=for-the-badge)
