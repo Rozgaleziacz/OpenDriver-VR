@@ -82,7 +82,7 @@ sudo ./scripts/install_driver.sh
 ---
 
 ## 🔌 Plugin Development Guide
-Creating a plugin is the easiest way to add your own hardware. Check the [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for a deep dive.
+Creating a plugin is the easiest way to add your own hardware. Check the [DEVELOPER_GUIDE.md](/docs/DEVELOPER_GUIDE.md) for a deep dive.
 
 ### Minimal `IPlugin` Sample
 ```cpp
