@@ -1,4 +1,6 @@
 # OpenDriver 👓
+<img width="1514" height="640" alt="banner (2)" src="https://github.com/user-attachments/assets/cd862967-4226-4231-bd81-1cbcf86f5e87" />
+
 
 **OpenDriver** is a modular, high-performance, and cross-platform virtual reality driver wrapper for **SteamVR / OpenVR**. Completely rewritten in modern C++ (from its earlier Rust implementation), it bypasses common SteamVR errors (such as Linux Compositor Error 303 / DRM leasing issues) and serves as a powerful foundation for developers to inject custom trackers, hands, or virtual HMDs into the SteamVR environment using a headless dependency-injected plugin system.
 
