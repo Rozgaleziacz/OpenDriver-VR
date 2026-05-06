@@ -145,11 +145,11 @@ void MainWindow::setupUI() {
     connect(btnDisableAll, &QPushButton::clicked, this, &MainWindow::onDisableAll);
 
     // --- KARTA: VIDEO ENCODING SETTINGS ---
-    auto* videoTab = new QWidget();
-    auto* videoLayout = new QVBoxLayout(videoTab);
+    m_videoTab = new QWidget();
+    auto* videoLayout = new QVBoxLayout(m_videoTab);
     
     // Video encoding group
-    auto* videoGroup = new QGroupBox("H.264 Video Encoding", videoTab);
+    auto* videoGroup = new QGroupBox("H.264 Video Encoding", m_videoTab);
     auto* videoGroupLayout = new QVBoxLayout(videoGroup);
     
     // Encoder type
@@ -219,7 +219,9 @@ void MainWindow::setupUI() {
     videoGroupLayout->addStretch();
     videoLayout->addWidget(videoGroup);
     
-    m_tabs->addTab(videoTab, "Video Encoding");
+    int videoTabIndex = m_tabs->addTab(m_videoTab, "Video Encoding");
+    m_tabs->removeTab(videoTabIndex);
+    m_videoTabVisible = false;
 
     setCentralWidget(central);
     
@@ -232,6 +234,20 @@ void MainWindow::onRefreshTimer() {
     m_deviceModel->refresh();
     m_pluginModel->refresh();
     syncPluginTabs();
+
+    opendriver::core::Event evt;
+    if (m_runtime->GetEventBusPublic().GetLatestEventCopy(
+            opendriver::core::EventType::UI_SHOW_ENCODER_SETTINGS, evt) &&
+        evt.timestamp != 0 && evt.timestamp != m_lastShowEncoderUiEventTs) {
+        m_lastShowEncoderUiEventTs = evt.timestamp;
+        if (m_videoTab && !m_videoTabVisible) {
+            m_tabs->addTab(m_videoTab, "Video Encoding");
+            m_videoTabVisible = true;
+        }
+        if (m_videoTab) {
+            m_tabs->setCurrentWidget(m_videoTab);
+        }
+    }
 }
 
 void MainWindow::onEnableAll() {

@@ -14,6 +14,7 @@ namespace opendriver::core {
 // ============================================================================
 
 class IPluginContext;  // forward declaration
+struct Event;
 
 class IPlugin {
 public:
@@ -62,7 +63,7 @@ public:
     virtual void* ExportState() { return nullptr; }
 
     /// Importuje stan po ponownym załadowaniu i OnInitialize() nowej wersji .so
-    virtual void ImportState(void* state) {}
+    virtual void ImportState(void* /*state*/) {}
 
     // ────────────────────────────────────────────────────────────────────
     // PER-FRAME UPDATES (opcjonalnie)
@@ -73,7 +74,7 @@ public:
     /// @param delta_time: czas od ostatniego frame'a (sekundy)
     /// 
     /// DEFAULT: no-op (nie musisz implementować jeśli nie potrzebujesz)
-    virtual void OnTick(float delta_time) {}
+    virtual void OnTick(float /*delta_time*/) {}
 
     // ────────────────────────────────────────────────────────────────────
     // EVENT HANDLING (subscriber part)
@@ -85,7 +86,7 @@ public:
     /// Wtedy OnEvent() jest wywoływane każdy raz gdy event jest publishowany
     /// 
     /// @param event: event do obsłużenia
-    virtual void OnEvent(const class Event& event) {}
+    virtual void OnEvent(const Event& /*event*/) {}
 
     // ────────────────────────────────────────────────────────────────────
     // STATUS & DEBUGGING
@@ -207,6 +208,9 @@ public:
 
     /// Zarejestrowanie callback'u do wykonania na głównym thread'a (thread-safe)
     virtual void PostToMainThread(std::function<void()> callback) = 0;
+
+    /// Popros UI o pokazanie ustawień enkodera (np. karta "Video Encoding")
+    virtual void RequestShowEncoderSettings() = 0;
 };
 
 // ============================================================================

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DOPENDRIVER_BUILD_GUI=OFF -DOPENDRIVER_ENABLE_LINUX_VIDEO=OFF -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  strict-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (Strict)
+        run: cmake -B build-strict -A x64 -DCMAKE_BUILD_TYPE=Release -DOPENDRIVER_BUILD_GUI=OFF -DOPENDRIVER_ENABLE_LINUX_VIDEO=OFF -DOPENDRIVER_STRICT=ON -DBUILD_TESTING=ON
+
+      - name: Build (Strict)
+        run: |
+          cmake --build build-strict --config Release --target opendriver_core
+          cmake --build build-strict --config Release --target test_event_bus
+          cmake --build build-strict --config Release --target test_config_manager
+          cmake --build build-strict --config Release --target test_mf_color_convert
+
+      - name: Test (Strict)
+        run: ctest --test-dir build-strict -C Release --output-on-failure

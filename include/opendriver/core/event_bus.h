@@ -47,6 +47,7 @@ enum class EventType : uint32_t {
 
     // Video pipeline
     VIDEO_FRAME = 0x4000,      // H264 NAL packet from SteamVR compositor
+    UI_SHOW_ENCODER_SETTINGS = 0x5000,
 
     // Generic plugin events (pluginy mogą definiować swoje własne)
     // Plugin może publikować EventType(0x8000 + custom_id)
@@ -178,9 +179,9 @@ public:
     /// Przydatne dla pluginów które chcą "zapytać" zamiast "słuchać"
     /// 
     /// Przykład:
-    ///   auto evt = bus.GetLatestEvent(EventType::DEVICE_CONNECTED);
-    ///   if (evt) { process(*evt); }
-    const Event* GetLatestEvent(EventType event_type) const;
+    ///   Event evt;
+    ///   if (bus.GetLatestEventCopy(EventType::DEVICE_CONNECTED, evt)) { process(evt); }
+    bool GetLatestEventCopy(EventType event_type, Event& out_event) const;
 
     // ────────────────────────────────────────────────────────────────────
     // DEBUGGING & MONITORING

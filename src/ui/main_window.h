@@ -62,6 +62,9 @@ private:
     QTextEdit* m_logView;
     QLineEdit* m_searchEdit;
     QTabWidget* m_tabs;
+    QWidget* m_videoTab = nullptr;
+    bool m_videoTabVisible = false;
+    uint64_t m_lastShowEncoderUiEventTs = 0;
     
     std::string m_selectedPlugin;
     

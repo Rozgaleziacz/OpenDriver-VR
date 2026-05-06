@@ -9,3 +9,8 @@ scripts/*
 
 docs/*
 !docs/CHANGELOG.md
+build/
+build-strict/
+
+build/
+build-strict/

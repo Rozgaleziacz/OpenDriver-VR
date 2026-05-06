@@ -5,6 +5,14 @@ project(opendriver VERSION 0.2.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+option(OPENDRIVER_BUILD_GUI "Build Qt-based runner/dashboard" ON)
+option(OPENDRIVER_ENABLE_LINUX_VIDEO "Build Linux x264/FFmpeg video path" ON)
+option(OPENDRIVER_STRICT "Treat warnings as errors for OpenDriver targets" OFF)
+
+include(CTest)
+if(BUILD_TESTING)
+    enable_testing()
+endif()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Platform detection
@@ -28,11 +36,12 @@ endif()
 # ─────────────────────────────────────────────────────────────────────────────
 # Qt6 Configuration (GUI only)
 # ─────────────────────────────────────────────────────────────────────────────
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
-
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
+if(OPENDRIVER_BUILD_GUI)
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTOUIC ON)
+    set(CMAKE_AUTORCC ON)
+    find_package(Qt6 COMPONENTS Widgets REQUIRED)
+endif()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FetchContent dependencies
@@ -63,7 +72,7 @@ set(OPENVR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/openvr/headers)
 # ─────────────────────────────────────────────────────────────────────────────
 # Video encoding dependencies (Linux only — x264 + FFmpeg)
 # ─────────────────────────────────────────────────────────────────────────────
-if(OD_PLATFORM_LINUX)
+if(OD_PLATFORM_LINUX AND OPENDRIVER_ENABLE_LINUX_VIDEO)
     include(ExternalProject)
 
     message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -171,6 +180,83 @@ if(OD_PLATFORM_WINDOWS)
     )
 endif()
 
+if(OPENDRIVER_STRICT)
+    if(MSVC)
+        target_compile_options(opendriver_core PRIVATE /W4 /WX)
+    else()
+        target_compile_options(opendriver_core PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+endif()
+
+if(BUILD_TESTING)
+    add_executable(test_event_bus tests/test_event_bus.cpp)
+    target_link_libraries(test_event_bus PRIVATE opendriver_core)
+    if(OPENDRIVER_STRICT)
+        if(MSVC)
+            target_compile_options(test_event_bus PRIVATE /W4 /WX)
+        else()
+            target_compile_options(test_event_bus PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        endif()
+    endif()
+    add_test(NAME test_event_bus COMMAND test_event_bus)
+
+    add_executable(test_config_manager tests/test_config_manager.cpp)
+    target_link_libraries(test_config_manager PRIVATE opendriver_core)
+    if(OPENDRIVER_STRICT)
+        if(MSVC)
+            target_compile_options(test_config_manager PRIVATE /W4 /WX)
+        else()
+            target_compile_options(test_config_manager PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        endif()
+    endif()
+    add_test(NAME test_config_manager COMMAND test_config_manager)
+
+    if(OD_PLATFORM_WINDOWS)
+        add_executable(test_mf_color_convert
+            tests/test_mf_color_convert.cpp
+            src/driver/video/mf_color_convert.cpp
+        )
+        target_include_directories(test_mf_color_convert PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+        )
+        if(OPENDRIVER_STRICT)
+            if(MSVC)
+                target_compile_options(test_mf_color_convert PRIVATE /W4 /WX)
+            else()
+                target_compile_options(test_mf_color_convert PRIVATE -Wall -Wextra -Wpedantic -Werror)
+            endif()
+        endif()
+        add_test(NAME test_mf_color_convert COMMAND test_mf_color_convert)
+
+        add_library(crash_tick_plugin SHARED tests/plugins/crash_tick_plugin.cpp)
+        target_include_directories(crash_tick_plugin PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+        )
+        set_target_properties(crash_tick_plugin PROPERTIES
+            PREFIX ""
+            SUFFIX ".dll"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+            RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+            LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+            LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug"
+        )
+
+        add_executable(test_plugin_loader_tick tests/test_plugin_loader_tick.cpp)
+        target_link_libraries(test_plugin_loader_tick PRIVATE opendriver_core)
+        add_dependencies(test_plugin_loader_tick crash_tick_plugin)
+        if(OPENDRIVER_STRICT)
+            if(MSVC)
+                target_compile_options(test_plugin_loader_tick PRIVATE /W4 /WX)
+            else()
+                target_compile_options(test_plugin_loader_tick PRIVATE -Wall -Wextra -Wpedantic -Werror)
+            endif()
+        endif()
+        add_test(NAME test_plugin_loader_tick COMMAND test_plugin_loader_tick)
+    endif()
+endif()
+
 # ----------------------------------------------------------------------------
 # BUILT-IN TEST PLUGINS
 # ----------------------------------------------------------------------------
@@ -181,43 +267,45 @@ endif()
 # RUNNER EXECUTABLE (with embedded GUI)
 # ─────────────────────────────────────────────────────────────────────────────
 
-add_executable(opendriver_runner src/main.cpp)
-target_link_libraries(opendriver_runner PRIVATE opendriver_core)
+if(OPENDRIVER_BUILD_GUI)
+    add_executable(opendriver_runner src/main.cpp)
+    target_link_libraries(opendriver_runner PRIVATE opendriver_core)
 
-target_sources(opendriver_runner PRIVATE
-    src/ui/main_window.cpp
-    src/ui/device_model.cpp
-    src/ui/plugin_model.cpp
-)
-target_link_libraries(opendriver_runner PRIVATE Qt6::Widgets)
-target_compile_definitions(opendriver_runner PRIVATE HAVE_GUI=1)
+    target_sources(opendriver_runner PRIVATE
+        src/ui/main_window.cpp
+        src/ui/device_model.cpp
+        src/ui/plugin_model.cpp
+    )
+    target_link_libraries(opendriver_runner PRIVATE Qt6::Widgets)
+    target_compile_definitions(opendriver_runner PRIVATE HAVE_GUI=1)
 
-if(OD_PLATFORM_WINDOWS)
-    set_target_properties(opendriver_runner PROPERTIES WIN32_EXECUTABLE FALSE) # Keep console for debugging even with GUI
-    get_filename_component(QT_DEPLOY_PREFIX "${Qt6_DIR}/../../.." ABSOLUTE)
-    set(QT_BIN_DIR "${QT_DEPLOY_PREFIX}/bin")
-    set(QT_PLUGINS_DIR "${QT_DEPLOY_PREFIX}/plugins")
+    if(OD_PLATFORM_WINDOWS)
+        set_target_properties(opendriver_runner PROPERTIES WIN32_EXECUTABLE FALSE) # Keep console for debugging even with GUI
+        get_filename_component(QT_DEPLOY_PREFIX "${Qt6_DIR}/../../.." ABSOLUTE)
+        set(QT_BIN_DIR "${QT_DEPLOY_PREFIX}/bin")
+        set(QT_PLUGINS_DIR "${QT_DEPLOY_PREFIX}/plugins")
 
-    add_custom_command(TARGET opendriver_runner POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${QT_BIN_DIR}/Qt6Core.dll"
-            "${QT_BIN_DIR}/Qt6Gui.dll"
-            "${QT_BIN_DIR}/Qt6Widgets.dll"
-            "$<TARGET_FILE_DIR:opendriver_runner>"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "$<TARGET_FILE_DIR:opendriver_runner>/platforms"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${QT_PLUGINS_DIR}/platforms/qwindows.dll"
-            "$<TARGET_FILE_DIR:opendriver_runner>/platforms"
-        COMMENT "Deploying Qt runtime dependencies for opendriver_runner"
+        add_custom_command(TARGET opendriver_runner POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${QT_BIN_DIR}/Qt6Core.dll"
+                "${QT_BIN_DIR}/Qt6Gui.dll"
+                "${QT_BIN_DIR}/Qt6Widgets.dll"
+                "$<TARGET_FILE_DIR:opendriver_runner>"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "$<TARGET_FILE_DIR:opendriver_runner>/platforms"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${QT_PLUGINS_DIR}/platforms/qwindows.dll"
+                "$<TARGET_FILE_DIR:opendriver_runner>/platforms"
+            COMMENT "Deploying Qt runtime dependencies for opendriver_runner"
+        )
+    endif()
+
+    set_target_properties(opendriver_runner PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${STEAMVR_BIN_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${STEAMVR_BIN_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${STEAMVR_BIN_DIR}"
     )
 endif()
-
-set_target_properties(opendriver_runner PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${STEAMVR_BIN_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${STEAMVR_BIN_DIR}"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${STEAMVR_BIN_DIR}"
-)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEAMVR DRIVER (.so on Linux, .dll on Windows)
@@ -262,6 +350,8 @@ if(OD_PLATFORM_LINUX)
             ${DRM_LIBRARIES}
         )
         target_compile_definitions(driver_opendriver PRIVATE HAVE_X264=1)
+    else()
+        target_compile_definitions(driver_opendriver PRIVATE HAVE_X264=0)
     endif()
 
     target_link_libraries(driver_opendriver PRIVATE pthread)
@@ -286,6 +376,7 @@ if(OD_PLATFORM_WINDOWS)
     # Add Media Foundation Hardware Encoder sources
     target_sources(driver_opendriver PRIVATE
         src/driver/video/mf_encoder.cpp
+        src/driver/video/mf_color_convert.cpp
     )
 
     # Do not use PIC on Windows
@@ -330,19 +421,22 @@ endif()
 # ─────────────────────────────────────────────────────────────────────────────
 # GUI DASHBOARD (merged into runner, requires Qt6)
 # ─────────────────────────────────────────────────────────────────────────────
-message(STATUS "GUI dashboard: enabled (embedded in runner natively)")
+message(STATUS "GUI dashboard: ${OPENDRIVER_BUILD_GUI}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # INSTALL RULES
 # ─────────────────────────────────────────────────────────────────────────────
 
-install(TARGETS opendriver_runner driver_opendriver
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-)
-
-if(OD_PLATFORM_LINUX)
-    install(TARGETS opendriver_shim LIBRARY DESTINATION lib)
+if(OPENDRIVER_BUILD_GUI)
+    install(TARGETS opendriver_runner driver_opendriver
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+    )
+else()
+    install(TARGETS driver_opendriver
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+    )
 endif()
 
 if(OD_PLATFORM_LINUX)
@@ -357,7 +451,7 @@ message(STATUS "━━━━━━ OpenDriver ${PROJECT_VERSION} Build Config �
 message(STATUS "  Platform       : ${CMAKE_SYSTEM_NAME}")
 message(STATUS "  C++ Standard   : C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  Video encode   : ${HAVE_VIDEO_ENCODE}")
-message(STATUS "  GUI (Qt6)      : ALWAYS BUILT")
+message(STATUS "  GUI (Qt6)      : ${OPENDRIVER_BUILD_GUI}")
 message(STATUS "  DRM shim       : ${OD_PLATFORM_LINUX}")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "")

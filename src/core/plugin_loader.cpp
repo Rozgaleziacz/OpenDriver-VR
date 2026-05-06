@@ -4,6 +4,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 #include <opendriver/core/logger.h>
 
@@ -155,6 +156,7 @@ bool PluginLoader::Load(const std::string& path) {
 }
 
 int PluginLoader::LoadDirectory(const std::string& plugins_dir, bool recursive) {
+    (void)recursive;
     int count = 0;
     if (!fs::exists(plugins_dir)) {
         Logger::GetInstance().Warn("PluginLoader", "Plugins directory does not exist: " + plugins_dir);
@@ -323,6 +325,12 @@ size_t PluginLoader::GetCount() const {
 }
 
 void PluginLoader::TickAll(float delta_time) {
+    struct TickItem {
+        std::string name;
+        IPlugin* plugin = nullptr;
+    };
+
+    std::vector<TickItem> tick_items;
     std::vector<std::string> to_unload;
     std::vector<std::string> to_reload;
     std::map<std::string, std::string> paths_to_reload;
@@ -332,38 +340,8 @@ void PluginLoader::TickAll(float delta_time) {
         std::lock_guard<std::mutex> lock(mutex);
 
         for (auto& [name, lp] : plugins) {
-            if (lp.instance->IsActive()) {
-                try {
-                    lp.instance->OnTick(delta_time);
-                } catch (const std::exception& e) {
-                    std::string err_msg = "Exception in [" + name + "] OnTick: " + e.what();
-                    Logger::GetInstance().Critical("Plugin", err_msg);
-                    context->Log(static_cast<int>(LogLevelEnum::Critical), err_msg.c_str());
-                    
-                    PluginErrorData error_data(name, err_msg, "TICK_EXCEPTION");
-                    Event error_evt(EventType::PLUGIN_ERROR, "core");
-                    error_evt.data = error_data;
-                    try {
-                        context->GetEventBus().Publish(error_evt);
-                    } catch (...) {}
-                    
-                    Logger::GetInstance().Error("Plugin", "Disabling plugin [" + name + "] due to crash.");
-                    context->Log(static_cast<int>(LogLevelEnum::Error), ("Disabling plugin: " + name).c_str());
-                    to_unload.push_back(name);
-                } catch (...) {
-                    std::string err_msg = "Unknown exception in [" + name + "] OnTick";
-                    Logger::GetInstance().Critical("Plugin", err_msg);
-                    context->Log(static_cast<int>(LogLevelEnum::Critical), err_msg.c_str());
-                    
-                    PluginErrorData error_data(name, err_msg, "TICK_UNKNOWN_EXCEPTION");
-                    Event error_evt(EventType::PLUGIN_ERROR, "core");
-                    error_evt.data = error_data;
-                    try {
-                        context->GetEventBus().Publish(error_evt);
-                    } catch (...) {}
-                    
-                    to_unload.push_back(name);
-                }
+            if (lp.instance && lp.instance->IsActive()) {
+                tick_items.push_back({name, lp.instance});
             }
         }
 
@@ -389,6 +367,44 @@ void PluginLoader::TickAll(float delta_time) {
         }
     }
 
+    // Run OnTick without holding loader mutex to avoid callback deadlocks.
+    for (const auto& item : tick_items) {
+        try {
+            item.plugin->OnTick(delta_time);
+        } catch (const std::exception& e) {
+            std::string err_msg = "Exception in [" + item.name + "] OnTick: " + e.what();
+            Logger::GetInstance().Critical("Plugin", err_msg);
+            context->Log(static_cast<int>(LogLevelEnum::Critical), err_msg.c_str());
+
+            PluginErrorData error_data(item.name, err_msg, "TICK_EXCEPTION");
+            Event error_evt(EventType::PLUGIN_ERROR, "core");
+            error_evt.data = error_data;
+            try {
+                context->GetEventBus().Publish(error_evt);
+            } catch (...) {}
+
+            Logger::GetInstance().Error("Plugin", "Disabling plugin [" + item.name + "] due to crash.");
+            context->Log(static_cast<int>(LogLevelEnum::Error), ("Disabling plugin: " + item.name).c_str());
+            to_unload.push_back(item.name);
+        } catch (...) {
+            std::string err_msg = "Unknown exception in [" + item.name + "] OnTick";
+            Logger::GetInstance().Critical("Plugin", err_msg);
+            context->Log(static_cast<int>(LogLevelEnum::Critical), err_msg.c_str());
+
+            PluginErrorData error_data(item.name, err_msg, "TICK_UNKNOWN_EXCEPTION");
+            Event error_evt(EventType::PLUGIN_ERROR, "core");
+            error_evt.data = error_data;
+            try {
+                context->GetEventBus().Publish(error_evt);
+            } catch (...) {}
+
+            to_unload.push_back(item.name);
+        }
+    }
+
+    std::sort(to_unload.begin(), to_unload.end());
+    to_unload.erase(std::unique(to_unload.begin(), to_unload.end()), to_unload.end());
+
     for (const auto& n : to_unload) {
         Unload(n);
     }
@@ -403,6 +419,22 @@ void PluginLoader::TickAll(float delta_time) {
                 IPlugin* reloaded = Get(name);
                 if (reloaded) {
                     try { reloaded->ImportState(saved_state); } catch (...) {}
+                }
+            } else if (saved_state) {
+                Logger::GetInstance().Warn(
+                    "PluginLoader",
+                    "Hot reload failed for " + name + "; exported state may need manual cleanup by plugin");
+            }
+        } else if (saved_state) {
+            // Best-effort cleanup: route state back to still-loaded plugin instance.
+            IPlugin* original = Get(name);
+            if (original) {
+                try {
+                    original->ImportState(saved_state);
+                } catch (...) {
+                    Logger::GetInstance().Warn(
+                        "PluginLoader",
+                        "Failed to restore exported state after aborted reload for " + name);
                 }
             }
         }
