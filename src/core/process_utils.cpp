@@ -13,6 +13,7 @@ namespace opendriver::core {
 ProcessHandle SpawnProcess(const std::string& executable,
                            const std::vector<std::string>& args,
                            bool env_clear) {
+    (void)env_clear;
     ProcessHandle result;
 
     // Build quoted command-line string

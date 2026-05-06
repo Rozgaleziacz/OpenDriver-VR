@@ -15,12 +15,43 @@ namespace opendriver::core {
 
 // ============================================================================
 // VIDEO FRAME DATA (payload for VIDEO_FRAME events)
+//
+// IMPORTANT: This struct MUST NOT be stored directly in std::any for
+// cross-DLL event delivery.  MSVC assigns separate RTTI to user-defined
+// types compiled into different modules (exe vs plugin DLL), so
+// std::any_cast<VideoFrameData> will throw/return nullptr on the
+// receiving side.
+//
+// Use Serialize() / Deserialize() to pack the data into a plain
+// std::vector<uint8_t>, which is a standard-library type with
+// consistent RTTI across all modules linked against the dynamic CRT.
 // ============================================================================
 
 struct VideoFrameData {
     std::vector<uint8_t> nal_data;  // Raw H264 NAL units
     uint64_t pts = 0;               // Presentation timestamp
     uint64_t frame_number = 0;      // Frame counter
+
+    /// Pack into a flat byte buffer: [8B frame_number][8B pts][nal_data...]
+    std::vector<uint8_t> Serialize() const {
+        std::vector<uint8_t> out;
+        out.resize(16 + nal_data.size());
+        std::memcpy(out.data(),     &frame_number, 8);
+        std::memcpy(out.data() + 8, &pts,          8);
+        if (!nal_data.empty()) {
+            std::memcpy(out.data() + 16, nal_data.data(), nal_data.size());
+        }
+        return out;
+    }
+
+    /// Unpack from a flat byte buffer produced by Serialize()
+    static bool Deserialize(const std::vector<uint8_t>& buf, VideoFrameData& out) {
+        if (buf.size() < 16) return false;
+        std::memcpy(&out.frame_number, buf.data(),     8);
+        std::memcpy(&out.pts,          buf.data() + 8, 8);
+        out.nal_data.assign(buf.begin() + 16, buf.end());
+        return true;
+    }
 };
 
 // ============================================================================
@@ -166,6 +197,11 @@ private:
                     case IPCMessageType::VIDEO_PACKET: {
                         // ═══════════════════════════════════════════
                         // H264 relay: Driver → EventBus → Plugins
+                        //
+                        // Frame data is serialized to a flat
+                        // std::vector<uint8_t> so that plugins in
+                        // separate DLLs can std::any_cast it without
+                        // RTTI conflicts (see VideoFrameData docs).
                         // ═══════════════════════════════════════════
                         video_frame_count++;
                         video_byte_count += msg.data.size();
@@ -178,7 +214,7 @@ private:
                                         .time_since_epoch().count();
 
                         Event evt(EventType::VIDEO_FRAME, "bridge");
-                        evt.data = std::move(frame);
+                        evt.data = frame.Serialize();
                         event_bus.Publish(evt);
                         break;
                     }

@@ -19,7 +19,7 @@
 namespace opendriver::core {
 
 // ============================================================================
-// CORE RUNTIME - serce OpenDriver'a
+// CORE RUNTIME - OpenDriver core
 // ============================================================================
 
 class Runtime : public IPluginContext {
@@ -66,11 +66,11 @@ public:
     // PLUGIN MANAGEMENT (runtime)
     // ────────────────────────────────────────────────────────────────────
 
-    /// Załaduj plugin w runtime'ie (nie trzeba restartu)
-    /// @param plugin_path: ścieżka do .so/.dll
+    /// Load plugin in runtime (no restart required)
+    /// @param plugin_path: path to .so/.dll
     bool LoadPluginRuntime(const std::string& plugin_path);
 
-    /// Wyladuj plugin w runtime'ie
+    /// Unload plugin in runtime
     bool UnloadPluginRuntime(const std::string& plugin_name);
 
     // Menedżer Pluginów (dla UI)
@@ -100,6 +100,7 @@ public:
                      double avx = 0, double avy = 0, double avz = 0) override;
     IPlugin* GetPlugin(const char* name) override;
     void PostToMainThread(std::function<void()> callback) override;
+    void RequestShowEncoderSettings() override;
 
     // ────────────────────────────────────────────────────────────────────
     // GETTERS

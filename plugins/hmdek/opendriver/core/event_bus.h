@@ -47,7 +47,6 @@ enum class EventType : uint32_t {
 
     // Video pipeline
     VIDEO_FRAME = 0x4000,      // H264 NAL packet from SteamVR compositor
-    UI_SHOW_ENCODER_SETTINGS = 0x5000,
 
     // Generic plugin events (pluginy mogą definiować swoje własne)
     // Plugin może publikować EventType(0x8000 + custom_id)

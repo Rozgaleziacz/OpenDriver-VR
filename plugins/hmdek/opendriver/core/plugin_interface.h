@@ -14,7 +14,6 @@ namespace opendriver::core {
 // ============================================================================
 
 class IPluginContext;  // forward declaration
-struct Event;
 
 class IPlugin {
 public:
@@ -63,7 +62,7 @@ public:
     virtual void* ExportState() { return nullptr; }
 
     /// Importuje stan po ponownym załadowaniu i OnInitialize() nowej wersji .so
-    virtual void ImportState(void* /*state*/) {}
+    virtual void ImportState(void* state) {}
 
     // ────────────────────────────────────────────────────────────────────
     // PER-FRAME UPDATES (opcjonalnie)
@@ -74,7 +73,7 @@ public:
     /// @param delta_time: czas od ostatniego frame'a (sekundy)
     /// 
     /// DEFAULT: no-op (nie musisz implementować jeśli nie potrzebujesz)
-    virtual void OnTick(float /*delta_time*/) {}
+    virtual void OnTick(float delta_time) {}
 
     // ────────────────────────────────────────────────────────────────────
     // EVENT HANDLING (subscriber part)
@@ -86,7 +85,7 @@ public:
     /// Wtedy OnEvent() jest wywoływane każdy raz gdy event jest publishowany
     /// 
     /// @param event: event do obsłużenia
-    virtual void OnEvent(const Event& /*event*/) {}
+    virtual void OnEvent(const struct Event& event) {}
 
     // ────────────────────────────────────────────────────────────────────
     // STATUS & DEBUGGING

@@ -197,15 +197,29 @@ public:
 
       if (j.contains("video_encoding")) {
         auto &ve = j["video_encoding"];
+        m_perf_profile = ve.value("profile", std::string("90_stable"));
+        m_adaptive_bitrate_enabled = ve.value("adaptive_bitrate", true);
         m_bitrate_mbps = ve.value("bitrate_mbps", 30);
         m_quality_preset = ve.value("preset", "ultrafast");
+        m_min_bitrate_mbps = ve.value("min_bitrate_mbps", 12);
+        m_max_bitrate_mbps = ve.value("max_bitrate_mbps", 80);
+
+        if (m_perf_profile == "120_fast") {
+          m_min_bitrate_mbps = std::max(m_min_bitrate_mbps, 20);
+          m_max_bitrate_mbps = std::max(m_max_bitrate_mbps, 100);
+          if (m_bitrate_mbps < 45) m_bitrate_mbps = 45;
+        } else {
+          m_min_bitrate_mbps = std::max(8, m_min_bitrate_mbps);
+          if (m_bitrate_mbps < 30) m_bitrate_mbps = 30;
+        }
 
         if (VRDriverLog()) {
           char buf[128];
           snprintf(
               buf, sizeof(buf),
-              "OpenDriver: Loaded video config — bitrate=%d Mbps, preset=%s",
-              m_bitrate_mbps, m_quality_preset.c_str());
+              "OpenDriver: Loaded video config — profile=%s, bitrate=%d Mbps, min=%d, max=%d, preset=%s, adaptive=%d",
+              m_perf_profile.c_str(), m_bitrate_mbps, m_min_bitrate_mbps, m_max_bitrate_mbps,
+              m_quality_preset.c_str(), m_adaptive_bitrate_enabled ? 1 : 0);
           VRDriverLog()->Log(buf);
         }
       }
@@ -353,19 +367,29 @@ public:
     if (m_video_thread_running) return;
     m_video_thread_running = true;
     m_video_encoder_thread = std::thread(&COpenDriverHMD::VideoEncoderLoop, this);
+    m_video_sender_thread = std::thread(&COpenDriverHMD::VideoSenderLoop, this);
   }
 
   void StopVideoThread() {
     m_video_thread_running = false;
     m_video_cv.notify_all();
+    m_send_cv.notify_all();
     if (m_video_encoder_thread.joinable()) {
       m_video_encoder_thread.join();
+    }
+    if (m_video_sender_thread.joinable()) {
+      m_video_sender_thread.join();
     }
   }
 
   void VideoEncoderLoop() {
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
     while (m_video_thread_running) {
+      if (m_reconfigure_requested.exchange(false)) {
+        CleanupEncoder();
+        InitEncoder();
+      }
+
       void* texture_handle = nullptr;
       {
         std::unique_lock<std::mutex> lock(m_video_mutex);
@@ -379,23 +403,118 @@ public:
 
       std::vector<uint8_t> out_packet;
       auto frame_start = std::chrono::steady_clock::now();
+      double encode_ms = 0.0;
+      double send_ms = 0.0;
 
       if (m_winEncoder->EncodeFrame(texture_handle, out_packet)) {
-        if (!out_packet.empty() && m_ipc) {
-          IPCMessage video_msg;
-          video_msg.type = IPCMessageType::VIDEO_PACKET;
-          video_msg.data = std::move(out_packet);
-          m_ipc->Send(video_msg);
+        auto after_encode = std::chrono::steady_clock::now();
+        encode_ms = std::chrono::duration<double, std::milli>(after_encode - frame_start).count();
+        if (!out_packet.empty()) {
+          std::lock_guard<std::mutex> send_lock(m_send_mutex);
+          if (!m_pending_packet.empty()) {
+            m_send_overwrite_frames++;
+          }
+          m_pending_packet = std::move(out_packet);
+          m_has_pending_packet = true;
+          m_send_cv.notify_one();
         }
       } else {
+        auto after_encode = std::chrono::steady_clock::now();
+        encode_ms = std::chrono::duration<double, std::milli>(after_encode - frame_start).count();
         m_mmap_failures++;
       }
 
       m_frame_count++;
       m_encoding_in_progress = false;
+      m_stats_window_frames++;
+      m_total_encode_ms += static_cast<float>(encode_ms);
+    }
+  }
 
-      auto now = std::chrono::steady_clock::now();
-      m_total_encode_ms += std::chrono::duration<float, std::milli>(now - frame_start).count();
+  void VideoSenderLoop() {
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+    while (m_video_thread_running) {
+      std::vector<uint8_t> packet;
+      {
+        std::unique_lock<std::mutex> lock(m_send_mutex);
+        m_send_cv.wait(lock, [this] {
+          return !m_video_thread_running || m_has_pending_packet;
+        });
+        if (!m_video_thread_running) {
+          break;
+        }
+        packet = std::move(m_pending_packet);
+        m_pending_packet.clear();
+        m_has_pending_packet = false;
+      }
+
+      if (packet.empty() || !m_ipc) {
+        continue;
+      }
+
+      IPCMessage video_msg;
+      video_msg.type = IPCMessageType::VIDEO_PACKET;
+      video_msg.data = std::move(packet);
+
+      auto send_start = std::chrono::steady_clock::now();
+      m_ipc->Send(video_msg);
+      auto send_end = std::chrono::steady_clock::now();
+      const double send_ms =
+          std::chrono::duration<double, std::milli>(send_end - send_start).count();
+      m_total_send_ms += static_cast<float>(send_ms);
+      if (send_ms > 2.0) {
+        m_send_slow_frames++;
+      }
+    }
+  }
+
+  void MaybeAdaptBitrate(float avg_send_ms,
+                         uint64_t slow_send_frames,
+                         uint64_t overwrite_send_frames,
+                         uint64_t window_frames) {
+    if (!m_adaptive_bitrate_enabled || window_frames < 30) {
+      return;
+    }
+
+    const bool congested =
+        avg_send_ms > 2.0f ||
+        slow_send_frames > (window_frames / 20) ||
+        overwrite_send_frames > (window_frames / 20);
+
+    if (congested) {
+      m_good_windows = 0;
+      int new_bitrate = std::max(m_min_bitrate_mbps, static_cast<int>(m_bitrate_mbps * 0.90f));
+      if (new_bitrate < m_bitrate_mbps) {
+        m_bitrate_mbps = new_bitrate;
+        m_reconfigure_requested = true;
+        if (VRDriverLog()) {
+          char b[192];
+          snprintf(b, sizeof(b),
+                   "OpenDriver [DX11]: Adaptive bitrate DOWN -> %d Mbps (avg send %.2fms, slow %llu, overwrite %llu)",
+                   m_bitrate_mbps, avg_send_ms,
+                   static_cast<unsigned long long>(slow_send_frames),
+                   static_cast<unsigned long long>(overwrite_send_frames));
+          VRDriverLog()->Log(b);
+        }
+      }
+      return;
+    }
+
+    m_good_windows++;
+    if (m_good_windows >= 3) {
+      m_good_windows = 0;
+      int new_bitrate = std::min(m_max_bitrate_mbps, static_cast<int>(m_bitrate_mbps * 1.05f));
+      if (new_bitrate > m_bitrate_mbps) {
+        m_bitrate_mbps = new_bitrate;
+        m_reconfigure_requested = true;
+        if (VRDriverLog()) {
+          char b[128];
+          snprintf(b, sizeof(b),
+                   "OpenDriver [DX11]: Adaptive bitrate UP -> %d Mbps (avg send %.2fms)",
+                   m_bitrate_mbps, avg_send_ms);
+          VRDriverLog()->Log(b);
+        }
+      }
     }
   }
 
@@ -609,29 +728,39 @@ public:
             INVALID_SHARED_TEXTURE_HANDLE)
       return;
 
-    if (m_encoding_in_progress.exchange(true)) {
-      m_frames_dropped++;
-      return;
-    }
-
     {
       std::lock_guard<std::mutex> lock(m_video_mutex);
+      if (m_last_texture_handle != nullptr) {
+        // Keep latest frame for lower latency; count overwritten pending frames.
+        m_frames_dropped++;
+      }
       m_last_texture_handle = reinterpret_cast<void *>(
           static_cast<uintptr_t>(pPresentInfo->backbufferTextureHandle));
     }
     m_video_cv.notify_one();
 
     if (m_frame_count % ((int)refresh_rate * 5) == 0 && VRDriverLog() && m_frame_count > 0) {
-      float avg_ms = m_total_encode_ms / m_frame_count;
+      const float avg_encode_ms = m_total_encode_ms / static_cast<float>(std::max<uint64_t>(1, m_stats_window_frames));
+      const float avg_send_ms = m_total_send_ms / static_cast<float>(std::max<uint64_t>(1, m_stats_window_frames));
       char buf[256];
       snprintf(buf, sizeof(buf),
-               "OpenDriver [DX11]: H264 stats — frame #%llu, avg encode %.1fms, "
+               "OpenDriver [DX11]: H264 stats — frame #%llu, avg encode %.2fms, avg send %.2fms, slow send %llu, overwrite-send %llu, "
                "dropped %llu, fails %llu",
-               static_cast<unsigned long long>(m_frame_count), avg_ms,
+               static_cast<unsigned long long>(m_frame_count), avg_encode_ms, avg_send_ms,
+               static_cast<unsigned long long>(m_send_slow_frames),
+               static_cast<unsigned long long>(m_send_overwrite_frames),
                static_cast<unsigned long long>(m_frames_dropped),
                static_cast<unsigned long long>(m_mmap_failures));
       VRDriverLog()->Log(buf);
+      MaybeAdaptBitrate(avg_send_ms,
+                        m_send_slow_frames,
+                        m_send_overwrite_frames,
+                        m_stats_window_frames);
       m_total_encode_ms = 0;
+      m_total_send_ms = 0;
+      m_stats_window_frames = 0;
+      m_send_slow_frames = 0;
+      m_send_overwrite_frames = 0;
     }
     return;
 
@@ -718,7 +847,11 @@ public:
 
   // Video encoding settings (loaded from config)
   int m_bitrate_mbps = 30;
+  int m_min_bitrate_mbps = 12;
+  int m_max_bitrate_mbps = 80;
+  std::string m_perf_profile = "90_stable";
   std::string m_quality_preset = "ultrafast";
+  bool m_adaptive_bitrate_enabled = true;
 
 #if defined(OD_PLATFORM_WINDOWS)
   std::unique_ptr<video::IVideoEncoder> m_winEncoder;
@@ -832,12 +965,23 @@ private:
   uint64_t m_mmap_failures = 0;
   uint64_t m_zero_size_frames = 0;
   float m_total_encode_ms = 0.0f;
+  float m_total_send_ms = 0.0f;
+  uint64_t m_stats_window_frames = 0;
+  uint64_t m_send_slow_frames = 0;
+  uint64_t m_good_windows = 0;
 
   // Background encoding
   std::thread m_video_encoder_thread;
+  std::thread m_video_sender_thread;
   std::condition_variable m_video_cv;
   std::mutex m_video_mutex;
   void* m_last_texture_handle = nullptr;
+  std::condition_variable m_send_cv;
+  std::mutex m_send_mutex;
+  std::vector<uint8_t> m_pending_packet;
+  bool m_has_pending_packet = false;
+  uint64_t m_send_overwrite_frames = 0;
+  std::atomic<bool> m_reconfigure_requested{false};
   std::atomic<bool> m_video_thread_running{false};
 };
 

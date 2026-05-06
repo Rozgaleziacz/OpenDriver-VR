@@ -2,17 +2,53 @@
 
 # OpenDriver-VR
 
-OpenDriver-VR is a native SteamVR/OpenVR driver project built in modern C++. The repository contains the full SteamVR driver payload in `driver/`, the runtime process launched by the driver, and an optional plugin system for adding devices such as HMDs, controllers, trackers, and custom integrations.
+OpenDriver-VR is a native SteamVR/OpenVR driver stack in modern C++ with:
+- a SteamVR-loaded driver (`driver_opendriver.dll`)
+- a separate runtime process (`opendriver_runner.exe`)
+- a dynamic plugin system for HMD/controllers/trackers/custom devices
+- a Qt dashboard UI
+- a Windows Media Foundation video path (DX11 -> H.264)
 
-The current Windows layout is designed so the repo itself can be registered directly as a SteamVR driver after build. You do not need to manually assemble a separate driver folder.
+The repository is laid out so it can be registered directly as a SteamVR driver after build.
 
-## Current Focus
+## Features
 
-- Native SteamVR driver in `driver/`
-- Windows runtime in `driver/bin/win64/`
-- Optional plugin loading from `%APPDATA%\opendriver\plugins`
-- Qt-based runner/dashboard bundled with `opendriver_runner.exe`
-- Media Foundation based Windows video path in the driver
+### Core runtime
+- Native SteamVR/OpenVR driver integration
+- Runtime launched by driver (lightweight driver, heavier logic in runner)
+- Event bus with publish/subscribe model
+- Device registry for dynamic virtual devices
+- Bridge IPC between runtime and SteamVR-facing driver code
+- Centralized logging and config management
+
+### Plugin system
+- Dynamic plugin loading (`.dll`/`.so`) via `plugin.json`
+- Plugin lifecycle: initialize, tick, event handling, shutdown
+- Runtime load/unload and directory scanning
+- Hot-reload support (`ExportState` / `ImportState`)
+- Crash isolation path for plugin `OnTick()` exceptions
+- Optional plugin-provided UI tabs
+
+### Video pipeline (Windows)
+- Media Foundation H.264 encoder path
+- DX11 shared texture ingestion
+- NV12 conversion fallback path
+- Annex-B output handling
+- Encoder telemetry logging (attempts/failures/timing snapshots)
+- Cooldown/backoff path after repeated encode failures
+
+### UI / Operations
+- Qt dashboard (`opendriver_runner.exe`)
+- Device and plugin visibility
+- Plugin enable/disable/reload flows
+- Video settings panel
+- Install scripts for SteamVR registration
+
+### Quality and CI
+- Unit/integration tests for core and video utility paths
+- Plugin crash-path test in loader
+- GitHub Actions CI (`build-and-test`, `strict-build`)
+- Optional strict compile mode (`OPENDRIVER_STRICT`)
 
 ## Repository Layout
 
@@ -32,6 +68,15 @@ OpenDriver-VR/
   docs/
 ```
 
+## Architecture (High-level)
+
+1. SteamVR loads `driver/driver.vrdrivermanifest`.
+2. SteamVR loads `driver/bin/win64/driver_opendriver.dll`.
+3. Driver launches `opendriver_runner.exe`.
+4. Runtime initializes config/logging/plugins.
+5. Plugins register devices and push pose/input updates.
+6. Bridge IPC synchronizes runtime state with driver-facing side.
+
 ## Windows Build
 
 Requirements:
@@ -49,7 +94,18 @@ cmake --build build --config Release --parallel
 
 Build output is copied into `driver/bin/win64/`.
 
-More Windows notes: [docs/BUILDING_WINDOWS.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/BUILDING_WINDOWS.md)
+Useful options:
+
+```powershell
+# Disable GUI (for CI/headless)
+cmake -B build -A x64 -DOPENDRIVER_BUILD_GUI=OFF
+
+# Disable Linux x264/FFmpeg path toggles in multi-platform CI configs
+cmake -B build -A x64 -DOPENDRIVER_ENABLE_LINUX_VIDEO=OFF
+
+# Treat warnings as errors (core/test quality gate)
+cmake -B build -A x64 -DOPENDRIVER_STRICT=ON -DBUILD_TESTING=ON
+```
 
 ## SteamVR Installation
 
@@ -79,7 +135,7 @@ Both scripts register the `driver` folder with SteamVR through `vrpathreg.exe`.
 
 ## Runtime and Plugins
 
-The SteamVR-loaded DLL stays lightweight and launches `opendriver_runner.exe` from the same `bin/win64` directory. The runtime initializes config/logging and scans:
+The runtime scans plugins in:
 
 ```text
 %APPDATA%\opendriver\plugins
@@ -89,7 +145,7 @@ If the folder is empty, the runtime still starts normally. Plugins are optional.
 
 ## Creating Plugins
 
-Plugins are standalone shared libraries that export `CreatePlugin` and `DestroyPlugin`. They are discovered through `plugin.json` files inside subfolders of `%APPDATA%\opendriver\plugins`.
+Plugins are shared libraries exporting `CreatePlugin` and `DestroyPlugin`, discovered by `plugin.json`.
 
 Minimal plugin shape:
 
@@ -113,10 +169,20 @@ public:
 };
 ```
 
-More details:
+Detailed docs:
 
 - [docs/DEVELOPER_GUIDE.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/DEVELOPER_GUIDE.md)
 - [docs/PLUGINS_API.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/PLUGINS_API.md)
+
+## Testing
+
+Configure with tests:
+
+```powershell
+cmake -B build -A x64 -DBUILD_TESTING=ON -DOPENDRIVER_BUILD_GUI=OFF
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+```
 
 ## Troubleshooting
 
@@ -127,7 +193,7 @@ More details:
 
 ## Documentation
 
-- [docs/DOCS.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/DOCS.md)
-- [docs/BUILDING_WINDOWS.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/BUILDING_WINDOWS.md)
 - [docs/DEVELOPER_GUIDE.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/DEVELOPER_GUIDE.md)
+- [docs/PLUGINS_API.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/PLUGINS_API.md)
 - [docs/CHANGELOG.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/CHANGELOG.md)
+- [docs/OpenDriver1.2.md](/c:/Users/Tomasz/Desktop/OpenDriver-VR/docs/OpenDriver1.2.md)

@@ -279,6 +279,13 @@ void Runtime::PostToMainThread(std::function<void()> callback) {
     main_thread_callbacks.push(std::move(callback));
 }
 
+void Runtime::RequestShowEncoderSettings() {
+    try {
+        Event evt(EventType::UI_SHOW_ENCODER_SETTINGS, "plugin");
+        event_bus.Publish(evt);
+    } catch (...) {}
+}
+
 void Runtime::ScanPlugins() {
     if (m_configDir.empty()) return;
     std::string plugins_dir = (fs::path(m_configDir) / "plugins").string();

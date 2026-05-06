@@ -27,27 +27,35 @@ void EventBus::Unsubscribe(EventType event_type, IEventListener* listener) {
 }
 
 void EventBus::Publish(const Event& event) {
-    std::lock_guard<std::mutex> lock(mutex);
-    
-    // Store in cache
-    event_cache[event.type] = event;
-    
-    // Notify subscribers
-    auto it = subscribers.find(event.type);
-    if (it != subscribers.end()) {
-        for (auto listener : it->second) {
+    std::vector<IEventListener*> listeners_snapshot;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+
+        // Store in cache
+        event_cache[event.type] = event;
+
+        auto it = subscribers.find(event.type);
+        if (it != subscribers.end()) {
+            listeners_snapshot = it->second;
+        }
+    }
+
+    // Callbacks outside lock to avoid deadlocks/re-entrancy lock inversions.
+    for (auto* listener : listeners_snapshot) {
+        if (listener) {
             listener->OnEvent(event);
         }
     }
 }
 
-const Event* EventBus::GetLatestEvent(EventType event_type) const {
+bool EventBus::GetLatestEventCopy(EventType event_type, Event& out_event) const {
     std::lock_guard<std::mutex> lock(mutex);
     auto it = event_cache.find(event_type);
     if (it != event_cache.end()) {
-        return &it->second;
+        out_event = it->second;
+        return true;
     }
-    return nullptr;
+    return false;
 }
 
 int EventBus::GetSubscriberCount(EventType event_type) const {
