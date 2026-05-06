@@ -1,5 +1,10 @@
 build/
+build-strict/
 android/
+logs/
 driver/bin/
 *.user
 .vs/
+.vscode/
+bin/
+obj/

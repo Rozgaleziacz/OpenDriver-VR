@@ -1,0 +1,24 @@
+{
+    "name": "android_hmd",
+    "version": "1.0.0",
+    "description": "Android Phone HMD Emulator",
+    "author": "OpenDriver-VR",
+    "enabled": true,
+    "entry_point": "android_hmd_plugin.dll",
+
+    "device_id": "android_hmd_001",
+    "udp_port": 6969,
+    "tcp_port": 6970,
+    "display_width": 1920,
+    "display_height": 1080,
+    "refresh_rate": 90.0,
+    "fov": 100.0,
+    "sensor_hz": 90.0,
+
+    "pitch_offset_deg": 0.0,
+    "ema_alpha_pos": 0.05,
+    "ema_alpha_rot": 0.08,
+    "ema_alpha_vel": 0.15,
+    "rot_deadzone_rad": 0.003,
+    "pos_deadzone_m": 0.001
+}
