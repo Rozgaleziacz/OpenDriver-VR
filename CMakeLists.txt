@@ -271,16 +271,22 @@ if(OPENDRIVER_BUILD_GUI)
     add_executable(opendriver_runner src/main.cpp)
     target_link_libraries(opendriver_runner PRIVATE opendriver_core)
 
+    set_target_properties(opendriver_runner PROPERTIES 
+        AUTOMOC ON 
+        AUTOUIC ON
+        AUTORCC ON
+    )
     target_sources(opendriver_runner PRIVATE
         src/ui/main_window.cpp
         src/ui/device_model.cpp
         src/ui/plugin_model.cpp
+        src/ui/resources.qrc
     )
     target_link_libraries(opendriver_runner PRIVATE Qt6::Widgets)
     target_compile_definitions(opendriver_runner PRIVATE HAVE_GUI=1)
 
     if(OD_PLATFORM_WINDOWS)
-        set_target_properties(opendriver_runner PROPERTIES WIN32_EXECUTABLE FALSE) # Keep console for debugging even with GUI
+        set_target_properties(opendriver_runner PROPERTIES WIN32_EXECUTABLE TRUE)
         get_filename_component(QT_DEPLOY_PREFIX "${Qt6_DIR}/../../.." ABSOLUTE)
         set(QT_BIN_DIR "${QT_DEPLOY_PREFIX}/bin")
         set(QT_PLUGINS_DIR "${QT_DEPLOY_PREFIX}/plugins")

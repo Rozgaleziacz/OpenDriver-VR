@@ -51,66 +51,294 @@ MainWindow::MainWindow(opendriver::core::Runtime* runtime, QWidget* parent)
 MainWindow::~MainWindow() {}
 
 void MainWindow::setupUI() {
-    setWindowTitle("OpenDriver Dashboard");
-    resize(900, 700);
+    setWindowTitle("OpenDriver VR Dashboard");
+    setWindowIcon(QIcon(":/icons/icon.png"));
+    resize(1000, 750);
+    setMinimumSize(800, 600);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // GLOBAL DARK THEME STYLESHEET
+    // ══════════════════════════════════════════════════════════════════════
+    setStyleSheet(R"(
+        * { font-family: 'Segoe UI', 'Inter', 'Roboto', sans-serif; }
+
+        QMainWindow { background: #0f1117; }
+
+        QTabWidget::pane {
+            border: 1px solid #2a2d3a;
+            background: #161822;
+            border-radius: 8px;
+        }
+        QTabBar::tab {
+            background: #1c1f2e;
+            color: #8b8fa3;
+            padding: 10px 22px;
+            margin-right: 2px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        QTabBar::tab:selected {
+            background: #161822;
+            color: #e0e4f0;
+            border-bottom: 2px solid #6c63ff;
+        }
+        QTabBar::tab:hover:!selected {
+            background: #22253a;
+            color: #c0c4d4;
+        }
+
+        QGroupBox {
+            background: #1c1f2e;
+            border: 1px solid #2a2d3a;
+            border-radius: 10px;
+            margin-top: 14px;
+            padding: 18px 14px 14px 14px;
+            font-weight: 700;
+            font-size: 13px;
+            color: #c8cce0;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 4px 12px;
+            background: #6c63ff;
+            color: white;
+            border-radius: 6px;
+            font-size: 11px;
+        }
+
+        QLabel { color: #b0b4c8; font-size: 12px; }
+
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #6c63ff, stop:1 #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 18px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #7c73ff, stop:1 #9b6cf6);
+        }
+        QPushButton:pressed { background: #5a52e0; }
+        QPushButton[danger="true"] {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #ef4444, stop:1 #f87171);
+        }
+        QPushButton[secondary="true"] {
+            background: #2a2d3a;
+            color: #b0b4c8;
+        }
+        QPushButton[secondary="true"]:hover { background: #363a4e; }
+
+        QLineEdit {
+            background: #1c1f2e;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #e0e4f0;
+            font-size: 12px;
+        }
+        QLineEdit:focus { border: 1px solid #6c63ff; }
+
+        QTableView, QListView {
+            background: #1c1f2e;
+            alternate-background-color: #20243a;
+            border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            color: #d0d4e4;
+            gridline-color: #2a2d3a;
+            font-size: 12px;
+            selection-background-color: #3730a3;
+            selection-color: white;
+        }
+        QHeaderView::section {
+            background: #22253a;
+            color: #8b8fa3;
+            border: none;
+            border-bottom: 2px solid #6c63ff;
+            padding: 8px 6px;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        QTextEdit {
+            background: #12141e;
+            color: #c8ccd8;
+            border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        QSpinBox, QDoubleSpinBox, QComboBox {
+            background: #1c1f2e;
+            border: 1px solid #2a2d3a;
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: #e0e4f0;
+            font-size: 12px;
+        }
+        QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+            border: 1px solid #6c63ff;
+        }
+        QComboBox::drop-down {
+            border: none;
+            width: 24px;
+        }
+        QComboBox QAbstractItemView {
+            background: #1c1f2e;
+            border: 1px solid #2a2d3a;
+            color: #e0e4f0;
+            selection-background-color: #3730a3;
+        }
+
+        QSlider::groove:horizontal {
+            height: 6px;
+            background: #2a2d3a;
+            border-radius: 3px;
+        }
+        QSlider::handle:horizontal {
+            background: #6c63ff;
+            width: 16px;
+            height: 16px;
+            margin: -5px 0;
+            border-radius: 8px;
+        }
+        QSlider::sub-page:horizontal {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #6c63ff, stop:1 #8b5cf6);
+            border-radius: 3px;
+        }
+
+        QSplitter::handle { background: #2a2d3a; height: 2px; }
+
+        QCheckBox { color: #b0b4c8; spacing: 8px; }
+        QCheckBox::indicator {
+            width: 16px; height: 16px;
+            border-radius: 4px;
+            border: 2px solid #3a3d4e;
+            background: #1c1f2e;
+        }
+        QCheckBox::indicator:checked {
+            background: #6c63ff;
+            border-color: #6c63ff;
+        }
+
+        QScrollBar:vertical {
+            background: transparent;
+            width: 8px;
+        }
+        QScrollBar::handle:vertical {
+            background: #3a3d4e;
+            border-radius: 4px;
+            min-height: 30px;
+        }
+        QScrollBar::handle:vertical:hover { background: #5a5d6e; }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+    )");
 
     auto* central = new QWidget(this);
     auto* mainLayout = new QVBoxLayout(central);
+    mainLayout->setContentsMargins(16, 12, 16, 12);
+    mainLayout->setSpacing(12);
 
-    // Nagłówek
-    auto* header = new QLabel("OpenDriver Core Runtime", this);
-    header->setStyleSheet("font-size: 20px; font-weight: bold; color: #2c3e50; margin: 10px;");
-    mainLayout->addWidget(header);
+    // ── HEADER BAR ──
+    auto* headerBar = new QHBoxLayout();
+    auto* logoLabel = new QLabel("◈", this);
+    logoLabel->setStyleSheet("font-size: 28px; color: #6c63ff; margin-right: 4px;");
+    auto* titleLabel = new QLabel("OpenDriver VR", this);
+    titleLabel->setStyleSheet("font-size: 22px; font-weight: 800; color: #e0e4f0;");
+    auto* versionLabel = new QLabel("v0.2.0", this);
+    versionLabel->setStyleSheet("font-size: 11px; color: #6c63ff; font-weight: 600; "
+                                 "background: #1c1f2e; border-radius: 4px; padding: 3px 8px;");
+    headerBar->addWidget(logoLabel);
+    headerBar->addWidget(titleLabel);
+    headerBar->addWidget(versionLabel);
+    headerBar->addStretch();
+    mainLayout->addLayout(headerBar);
 
-    // Zakładki
+    // ── TABS ──
     m_tabs = new QTabWidget(this);
     mainLayout->addWidget(m_tabs);
 
-    // --- KARTA: OVERVIEW ---
+    // ═══════════ OVERVIEW TAB ═══════════
     auto* overviewTab = new QWidget();
     auto* overviewLayout = new QVBoxLayout(overviewTab);
-    overviewLayout->addWidget(new QLabel("<b>Connected Devices:</b>"));
+    overviewLayout->setContentsMargins(12, 12, 12, 12);
+    overviewLayout->setSpacing(12);
+
+    auto* devicesGroup = new QGroupBox("Connected Devices", overviewTab);
+    auto* devicesGroupLayout = new QVBoxLayout(devicesGroup);
     m_deviceListView = new QListView(this);
     m_deviceListView->setModel(m_deviceModel);
-    overviewLayout->addWidget(m_deviceListView);
-    m_tabs->addTab(overviewTab, "Overview");
+    m_deviceListView->setAlternatingRowColors(true);
+    m_deviceListView->setMinimumHeight(200);
+    devicesGroupLayout->addWidget(m_deviceListView);
+    overviewLayout->addWidget(devicesGroup);
+    overviewLayout->addStretch();
+    m_tabs->addTab(overviewTab, "⬡  Overview");
 
-    // --- KARTA: PLUGIN MANAGER ---
+    // ═══════════ PLUGINS TAB ═══════════
     auto* pluginTab = new QWidget();
     auto* pluginLayout = new QVBoxLayout(pluginTab);
-    
+    pluginLayout->setContentsMargins(12, 12, 12, 12);
+    pluginLayout->setSpacing(10);
+
     // Toolbar
     auto* toolbar = new QHBoxLayout();
+    toolbar->setSpacing(8);
     m_searchEdit = new QLineEdit();
-    m_searchEdit->setPlaceholderText("Search plugins...");
+    m_searchEdit->setPlaceholderText("🔍  Search plugins...");
+    m_searchEdit->setMinimumWidth(200);
     toolbar->addWidget(m_searchEdit);
-    
+    toolbar->addStretch();
+
     auto* btnEnableAll = new QPushButton("Enable All");
+    btnEnableAll->setProperty("secondary", true);
     auto* btnDisableAll = new QPushButton("Disable All");
+    btnDisableAll->setProperty("secondary", true);
+    auto* btnRefresh = new QPushButton("↻  Refresh");
+    auto* btnRemove = new QPushButton("✕  Remove");
+    btnRemove->setProperty("danger", true);
     toolbar->addWidget(btnEnableAll);
     toolbar->addWidget(btnDisableAll);
+    toolbar->addWidget(btnRefresh);
+    toolbar->addWidget(btnRemove);
     pluginLayout->addLayout(toolbar);
 
-    // Splitter dla tabeli i logów
+    // Splitter
     auto* splitter = new QSplitter(Qt::Vertical, this);
     pluginLayout->addWidget(splitter);
 
-    // Tabela pluginów
     m_pluginTableView = new QTableView();
     m_pluginTableView->setModel(m_pluginModel);
     m_pluginTableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_pluginTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_pluginTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_pluginTableView->setAlternatingRowColors(true);
+    m_pluginTableView->verticalHeader()->hide();
+    m_pluginTableView->setShowGrid(false);
     splitter->addWidget(m_pluginTableView);
-    
-    // Panel Logów (Kontener)
+
+    // Log panel
     auto* logContainer = new QWidget();
     auto* logLayout = new QVBoxLayout(logContainer);
-    logLayout->setContentsMargins(0, 5, 0, 0);
-    
+    logLayout->setContentsMargins(0, 8, 0, 0);
+
     auto* logHeader = new QHBoxLayout();
-    m_logStatusLabel = new QLabel("<b>Logs:</b> Showing all", this);
-    auto* btnClearLogs = new QPushButton("Clear Logs", this);
+    m_logStatusLabel = new QLabel("◉  Logs: Showing all", this);
+    m_logStatusLabel->setStyleSheet("font-weight: 700; color: #8b8fa3; font-size: 11px;");
+    auto* btnClearLogs = new QPushButton("Clear");
+    btnClearLogs->setProperty("secondary", true);
+    btnClearLogs->setMaximumWidth(80);
     logHeader->addWidget(m_logStatusLabel);
     logHeader->addStretch();
     logHeader->addWidget(btnClearLogs);
@@ -119,112 +347,110 @@ void MainWindow::setupUI() {
     m_logView = new QTextEdit();
     m_logView->setReadOnly(true);
     m_logView->setPlaceholderText("Select a plugin to see its logs...");
-    m_logView->setStyleSheet("background-color: #1e1e1e; color: #d4d4d4; font-family: 'Courier New';");
     logLayout->addWidget(m_logView);
     splitter->addWidget(logContainer);
+    splitter->setStretchFactor(0, 3);
+    splitter->setStretchFactor(1, 2);
 
-    // Toolbar (Refresh/Remove)
-    auto* btnRefresh = new QPushButton("Refresh Plugins");
-    auto* btnRemove = new QPushButton("Remove Plugin");
-    btnRemove->setStyleSheet("background-color: #ff5555; color: white; border-radius: 4px; padding: 5px;");
-    toolbar->addWidget(btnRefresh);
-    toolbar->addWidget(btnRemove);
-    
-    m_tabs->addTab(pluginTab, "Plugins");
+    m_tabs->addTab(pluginTab, "⚙  Plugins");
 
     connect(btnRefresh, &QPushButton::clicked, this, &MainWindow::onRefreshPlugins);
     connect(btnRemove, &QPushButton::clicked, this, &MainWindow::onRemovePlugin);
     connect(btnClearLogs, &QPushButton::clicked, m_logView, &QTextEdit::clear);
     connect(m_pluginTableView, &QTableView::clicked, this, &MainWindow::onPluginTableClicked);
     connect(m_pluginTableView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MainWindow::onPluginSelected);
-
-    // Dynamiczne zakładki z pluginów (opcje pluginów)
-    // UWAGA: Te zakładki mogą się pojawiać/znikać w onRefreshTimer
-    
     connect(btnEnableAll, &QPushButton::clicked, this, &MainWindow::onEnableAll);
     connect(btnDisableAll, &QPushButton::clicked, this, &MainWindow::onDisableAll);
 
-    // --- KARTA: VIDEO ENCODING SETTINGS ---
+    // ═══════════ VIDEO ENCODING TAB ═══════════
     m_videoTab = new QWidget();
     auto* videoLayout = new QVBoxLayout(m_videoTab);
-    
-    // Video encoding group
-    auto* videoGroup = new QGroupBox("H.264 Video Encoding", m_videoTab);
+    videoLayout->setContentsMargins(12, 12, 12, 12);
+    videoLayout->setSpacing(12);
+
+    auto* videoGroup = new QGroupBox("H.264 Encoder Configuration", m_videoTab);
     auto* videoGroupLayout = new QVBoxLayout(videoGroup);
-    
+    videoGroupLayout->setSpacing(12);
+
     // Encoder type
     auto* encoderLayout = new QHBoxLayout();
-    encoderLayout->addWidget(new QLabel("Encoder Type:"));
+    auto* encLabel = new QLabel("Encoder:");
+    encLabel->setStyleSheet("font-weight: 600; color: #e0e4f0;");
+    encoderLayout->addWidget(encLabel);
     m_encoderTypeCombo = new QComboBox();
-    m_encoderTypeCombo->addItem("H.264 (x264) - Recommended");
-    m_encoderTypeCombo->addItem("H.265 (x265) - Lower bandwidth");
-    m_encoderTypeCombo->setEnabled(true);
+    m_encoderTypeCombo->addItem("H.264 (Media Foundation) — Recommended");
+    m_encoderTypeCombo->addItem("H.265 (HEVC) — Lower bandwidth");
+    m_encoderTypeCombo->setMinimumWidth(300);
     encoderLayout->addWidget(m_encoderTypeCombo);
     encoderLayout->addStretch();
     videoGroupLayout->addLayout(encoderLayout);
-    
+
     // Quality preset
     auto* qualityLayout = new QHBoxLayout();
-    qualityLayout->addWidget(new QLabel("Quality Preset:"));
+    auto* qualLabel = new QLabel("Quality:");
+    qualLabel->setStyleSheet("font-weight: 600; color: #e0e4f0;");
+    qualityLayout->addWidget(qualLabel);
     m_qualityPresetCombo = new QComboBox();
     m_qualityPresetCombo->addItem("ultrafast (Lowest latency)");
     m_qualityPresetCombo->addItem("superfast");
     m_qualityPresetCombo->addItem("veryfast");
     m_qualityPresetCombo->addItem("faster");
-    m_qualityPresetCombo->setCurrentIndex(0);  // Default ultrafast
+    m_qualityPresetCombo->setCurrentIndex(0);
+    m_qualityPresetCombo->setMinimumWidth(300);
     qualityLayout->addWidget(m_qualityPresetCombo);
     qualityLayout->addStretch();
     videoGroupLayout->addLayout(qualityLayout);
-    
-    // Bitrate control
+
+    // Bitrate
     auto* bitrateLayout = new QHBoxLayout();
-    bitrateLayout->addWidget(new QLabel("Target Bitrate (Mbps):"));
+    auto* brLabel = new QLabel("Bitrate:");
+    brLabel->setStyleSheet("font-weight: 600; color: #e0e4f0;");
+    bitrateLayout->addWidget(brLabel);
     m_bitrateSpinBox = new QSpinBox();
     m_bitrateSpinBox->setMinimum(5);
     m_bitrateSpinBox->setMaximum(100);
     m_bitrateSpinBox->setValue(30);
     m_bitrateSpinBox->setSingleStep(1);
-    m_bitrateSpinBox->setPrefix("");
     m_bitrateSpinBox->setSuffix(" Mbps");
+    m_bitrateSpinBox->setMinimumWidth(120);
     bitrateLayout->addWidget(m_bitrateSpinBox);
-    
     m_bitrateValueLabel = new QLabel("(30 Mbps)");
+    m_bitrateValueLabel->setStyleSheet("color: #6c63ff; font-weight: 600;");
     bitrateLayout->addWidget(m_bitrateValueLabel);
     bitrateLayout->addStretch();
     videoGroupLayout->addLayout(bitrateLayout);
-    
-    // Bitrate slider
-    auto* sliderLayout = new QHBoxLayout();
+
     auto* slider = new QSlider(Qt::Horizontal);
     slider->setMinimum(5);
     slider->setMaximum(100);
     slider->setValue(30);
-    sliderLayout->addWidget(slider);
-    videoGroupLayout->addLayout(sliderLayout);
-    
+    videoGroupLayout->addWidget(slider);
+
     connect(m_bitrateSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::onBitrateChanged);
     connect(slider, &QSlider::valueChanged, m_bitrateSpinBox, &QSpinBox::setValue);
     connect(m_bitrateSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), slider, &QSlider::setValue);
-    
-    // Encoding stats
-    m_encodingStatsLabel = new QLabel("Stats: Waiting for data...");
-    m_encodingStatsLabel->setStyleSheet("background-color: #f0f0f0; padding: 10px; border-radius: 5px;");
+
+    // Stats card
+    m_encodingStatsLabel = new QLabel("⏳  Waiting for encoder data...");
+    m_encodingStatsLabel->setStyleSheet(
+        "background: #12141e; padding: 14px; border-radius: 8px; "
+        "color: #8b8fa3; border: 1px solid #2a2d3a;");
     videoGroupLayout->addWidget(m_encodingStatsLabel);
-    
-    // Apply button
-    auto* btnApply = new QPushButton("Apply Settings");
+
+    auto* btnApply = new QPushButton("✓  Apply Settings");
     connect(btnApply, &QPushButton::clicked, this, &MainWindow::onApplyVideoSettings);
     videoGroupLayout->addWidget(btnApply);
-    
+
     videoGroupLayout->addStretch();
     videoLayout->addWidget(videoGroup);
-    
-    int videoTabIndex = m_tabs->addTab(m_videoTab, "Video Encoding");
+    videoLayout->addStretch();
+
+    int videoTabIndex = m_tabs->addTab(m_videoTab, "🎬  Video Encoding");
     m_tabs->removeTab(videoTabIndex);
     m_videoTabVisible = false;
 
     setCentralWidget(central);
-    
+
     // Load initial video settings
     onLoadVideoSettings();
     syncPluginTabs();
@@ -241,7 +467,7 @@ void MainWindow::onRefreshTimer() {
         evt.timestamp != 0 && evt.timestamp != m_lastShowEncoderUiEventTs) {
         m_lastShowEncoderUiEventTs = evt.timestamp;
         if (m_videoTab && !m_videoTabVisible) {
-            m_tabs->addTab(m_videoTab, "Video Encoding");
+            m_tabs->addTab(m_videoTab, "🎬  Video Encoding");
             m_videoTabVisible = true;
         }
         if (m_videoTab) {
@@ -281,15 +507,15 @@ void MainWindow::onRefreshPlugins() {
 void MainWindow::onPluginSelected(const QItemSelection& selected, const QItemSelection& /*deselected*/) {
     if (selected.isEmpty()) {
         m_selectedPlugin = "";
-        m_logStatusLabel->setText("<b>Logs:</b> Showing all");
+        m_logStatusLabel->setText("◉  Logs: Showing all");
         return;
     }
     
     int row = selected.indexes().first().row();
     m_selectedPlugin = m_pluginModel->index(row, 1).data().toString().toStdString(); // Index 1 is name
     
-    m_logStatusLabel->setText(QString("<b>Logs:</b> Filtering by [%1]").arg(QString::fromStdString(m_selectedPlugin)));
-    m_logView->append(QString("<br><i style='color: #6272a4'>--- Showing logs for [%1] ---</i>").arg(QString::fromStdString(m_selectedPlugin)));
+    m_logStatusLabel->setText(QString("◉  Logs: %1").arg(QString::fromStdString(m_selectedPlugin)));
+    m_logView->append(QString("<br><i style='color: #6c63ff'>━━━ Logs for [%1] ━━━</i>").arg(QString::fromStdString(m_selectedPlugin)));
 }
 
 void MainWindow::onPluginTableClicked(const QModelIndex& index) {
@@ -306,12 +532,12 @@ void MainWindow::onLogReceived(const opendriver::core::LogEntry& entry) {
     }
 
     QString timeStr = QDateTime::fromMSecsSinceEpoch(entry.timestamp).toString("hh:mm:ss.zzz");
-    QString color = "#d4d4d4"; // default
+    QString color = "#c8ccd8"; // default text
     
-    if (entry.level >= opendriver::core::LogLevel::Error) color = "#ff5555";
-    else if (entry.level == opendriver::core::LogLevel::Warn) color = "#ffb86c";
+    if (entry.level >= opendriver::core::LogLevel::Error) color = "#f87171";
+    else if (entry.level == opendriver::core::LogLevel::Warn) color = "#fbbf24";
 
-    QString html = QString("<span style='color: #6272a4'>[%1]</span> <span style='color: %2'><b>[%3]</b> %4</span>")
+    QString html = QString("<span style='color: #4b4f6a'>[%1]</span> <span style='color: %2'><b>[%3]</b> %4</span>")
         .arg(timeStr)
         .arg(color)
         .arg(QString::fromStdString(entry.source))
